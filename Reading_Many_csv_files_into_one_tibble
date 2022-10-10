@@ -1,0 +1,29 @@
+#Loading the Libraries
+
+library(tidyverse)
+
+#Creating a List with the names of all .csv files to be used
+
+list_datasets <- 
+  list.files(path = "/PathName",
+             pattern = "*.csv",
+             full.names = TRUE)
+
+#Creating an empty list to be filled with tibbles, one to each .csv file
+
+list_tibbles <- list()
+
+#Iterating through each .csv file in the list, creating tibbles and assigning them to the empty list. Also defining column names and skipping header row
+
+for(i in 1:length(list_datasets)){
+  list_tibbles[i] <- list(read_csv(list_datasets[[i]], 
+                                   col_names = c("column1",
+                                                 "column2"
+                                                 "column3"),
+                                   skip = 1))
+  }
+
+#Creating the final dataset by combining each individual tibble
+
+tbl_final <- bind_rows(list_tibbles)
+head(tbl_final)
