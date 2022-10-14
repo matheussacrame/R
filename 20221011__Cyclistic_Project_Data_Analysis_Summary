@@ -1,0 +1,122 @@
+# Loading the libraries
+library(tidyverse)
+library(lubridate)
+library(ggmap)
+
+# Summarizing median and number of trips by member type - without outliers
+rides_2021 %>% 
+  filter(trip_duration_mins < 200) %>% 
+  group_by(user_type) %>% 
+  summarize(median_duration = median(trip_duration_mins), number_trips = n())
+
+# Histogram with member and casual trip duration
+rides_2021 %>% 
+  filter(trip_duration_mins < 60) %>% 
+  ggplot(aes(x = trip_duration_mins)) +
+  geom_histogram(binwidth = 2) +
+  facet_wrap(~user_type)
+
+# Casual x Member number of trips per day of the week
+
+ggplot(data = rides_2021, aes(x = start_day_of_week)) +
+  geom_bar(aes(fill = user_type), position = "dodge") +
+  labs(x = "Dia da Semana",
+       y = "Número de viagens",
+       title = "Casual x Membro: nº de viagens por dia da semana",
+       subtitle = "Membros predominam de segunda a sexta",
+       caption = "Dados: 2021 Divvy Bikes - cerca de 5,6 milhões de viagens")
+
+# Casual x Member per hour of the day - weekday
+
+rides_2021 %>% 
+  filter(start_day_of_week %in% c("seg", "ter", "qua", "qui", "sex")) %>% 
+  ggplot(aes(x = hms::as_hms(start_time))) +
+  geom_histogram(bins = 96, color = "blue") +
+  facet_wrap(~user_type) +
+  labs(x = "Horas do Dia - de 0h a 24h",
+       y = "Número de viagens",
+       title = "Casual x Membro: viagens por hora do dia",
+       subtitle = "Números apenas de segunda a sexta",
+       caption = "Dados: 2021 Divvy Bikes")
+
+# Casual x Member per hour of the day - weekend
+
+rides_2021 %>% 
+  filter(start_day_of_week %in% c("sáb", "dom")) %>% 
+  ggplot(aes(x = hms::as_hms(start_time))) +
+  geom_histogram(bins = 96, color = "blue") +
+  facet_wrap(~user_type) +
+  labs(x = "Horas do Dia - de 0h a 24h",
+       y = "Número de viagens",
+       title = "Casual x Membro: viagens por hora do dia",
+       subtitle = "Números apenas de sábado e domingo",
+       caption = "Dados: 2021 Divvy Bikes")
+
+# Member x Casual relativity in morning spike in weekdays
+
+df_spike_wdays <- rides_2021 %>% 
+              filter(start_day_of_week %in% c("seg", "ter", "qua", "qui", "sex"),
+                     hms::as_hms(start_time) > hms::as_hms("05:00:00") &
+                     hms::as_hms(start_time) < hms::as_hms("10:00:00")) %>%
+              group_by(user_type) %>% 
+              summarize(median_duration = median(trip_duration_mins), number_trips = n())
+
+df_spike_wdays <- mutate(df_spike_wdays, prop = number_trips/sum(number_trips))
+print(df_spike_wdays)
+
+# There were around 591 casual trips per day in weekdays between
+# 5 a.m. and 10 a.m. in 2021. These people could be targets of the marketing campaign.
+  
+# Season analysis - trips by season
+
+rides_2021 %>% 
+  filter(trip_duration_mins < 200) %>% 
+  group_by(seasons, user_type) %>% 
+  summarize(median_duration = median(trip_duration_mins), number_trips = n())
+
+ggplot(data = rides_2021) +
+  geom_bar(mapping = aes(x = seasons, fill = user_type),
+           position = "dodge") +
+  labs(x = "Estação do Ano",
+       y = "Número de viagens",
+       title = "Casual x Membro: nº de viagens por estação do ano",
+       subtitle = "Há grande diferença no outono e no inverno",
+       caption = "Dados: 2021 Divvy Bikes")
+
+# Top Stations: casuals
+casual_df_20 <- rides_2021 %>%
+                  filter(user_type == "casual") %>% 
+                  count(start_lat, start_lng, sort = TRUE) %>% 
+                  slice_head(n = 20)
+
+# Top Stations: members
+member_df_20 <- rides_2021 %>%
+              filter(user_type == "member") %>% 
+              count(start_lat, start_lng, sort = TRUE) %>% 
+              slice_head(n = 20)
+
+# Binding the two lat/lng dataframes
+df_top_stations <- bind_rows("casual" = casual_df_20, 
+                             "member" = member_df_20, 
+                             .id = "user_type")
+
+# Mapping top stations
+
+chicago_map <- 
+  ggmap(get_stamenmap(bbox = c(left = -87.8063, 
+                               bottom = 41.7860, 
+                               right = -87.5841, 
+                               top = 41.9948), 
+                      zoom = 10,
+                      maptype = "terrain",
+                      crop=TRUE))
+
+chicago_map +
+  geom_count(data = df_top_stations, 
+             mapping = aes(x = start_lng, y = start_lat, size = n, color = user_type),
+             alpha = .7) +
+  scale_color_manual(values = c("red", "green")) +
+  labs(title = "Casual x Membro: 20 estações mais usadas por cada",
+       subtitle = "Casuais se concentram na orla e nos parques",
+       caption = "Mapa: Stamen Design, CC BY 3.0. Data by OpenStreetMap, ODbL") +
+  theme(plot.caption.position = "plot")
