@@ -1,0 +1,60 @@
+#Loading libraries
+library(tidyverse)
+library(lubridate)
+
+#Changing date column names to date-time
+
+colnames(rides_2021)[3] <- "start_date_time"
+colnames(rides_2021)[4] <- "end_date_time"
+
+#Spliting date-time columns into date and time
+
+rides_2021$start_date <- as.Date(rides_2021$start_date_time)
+rides_2021$end_date <- as.Date(rides_2021$end_date_time)
+rides_2021$start_time <- format(as.POSIXct(rides_2021$start_date_time), format = "%H:%M:%S")
+rides_2021$end_time <- format(as.POSIXct(rides_2021$end_date_time), format = "%H:%M:%S")
+
+#Creating 'trip_duration' column
+rides_2021$trip_duration_mins <- difftime(rides_2021$end_date_time, rides_2021$start_date_time, units = "mins")
+
+#Dropping date-time columns
+
+rides_2021$start_date_time <- NULL
+rides_2021$end_date_time <- NULL
+
+#Creating 'start_day_of_week' column
+
+rides_2021$start_day_of_week <- wday(rides_2021$start_date, label=TRUE)
+
+# Creating 'seasons' column
+rides_2021 <- rides_2021 %>% 
+  mutate(seasons = case_when(start_date >= as.Date("2021-03-20") 
+                             & start_date < as.Date("2021-06-21") ~ "spring",
+                             start_date >= as.Date("2021-06-21") 
+                             & start_date < as.Date("2021-09-22") ~ "summer",
+                             start_date >= as.Date("2021-09-22") 
+                             & start_date < as.Date("2021-12-21") ~ "fall",
+                             start_date >= as.Date("2021-12-21") 
+                             | start_date < as.Date("2021-03-20") ~ "winter")
+  )
+
+#Converting formats - character to factor and character to hms
+
+rides_2021$rideable_type <- as.factor(rides_2021$rideable_type)
+rides_2021$user_type <- as.factor(rides_2021$user_type)
+rides_2021$start_time <- hms::as_hms(rides_2021$start_time)
+rides_2021$end_time <- hms::as_hms(rides_2021$end_time)
+rides_2021$seasons <- as.factor(rides_2021$seasons)
+
+#Other relevant information
+
+#1. NAs
+#Nulls have been checked through the formula sum(is.na(rides_2021$column_name))
+#Nulls exist in end_station_name and end_station_id (NAs are 13% of total rows),
+#start_station_name and start_station_id (12% of total rows)
+#and end_lat and end_lng (< 0,1% of total rows).
+#They have been kept in the dataset, because these rows have valuable info in other columns
+#It is important to FILTER/DROP OUT the NAs when using theses columns
+
+#2. Duplicates
+#Checked for duplicates with duplicated(), unique() functions in trip_id column. None found.
