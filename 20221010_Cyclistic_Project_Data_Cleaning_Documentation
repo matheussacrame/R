@@ -54,7 +54,6 @@ rides_2021$seasons <- as.factor(rides_2021$seasons)
 #start_station_name and start_station_id (12% of total rows)
 #and end_lat and end_lng (< 0,1% of total rows).
 #They have been kept in the dataset, because these rows have valuable info in other columns
-#It is important to FILTER/DROP OUT the NAs when using theses columns
 
 #2. Duplicates
 #Checked for duplicates with duplicated(), unique() functions in trip_id column. None found.
